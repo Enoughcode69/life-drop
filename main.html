@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LifeDrop — Dashboard</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#e9d8fd">
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+    import { getFirestore, collection, getDocs, doc, getDoc, setDoc, onSnapshot, arrayUnion } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
+
+    // Firebase config
+    const firebaseConfig = {
+      apiKey: "AIzaSyDkCAboSzG3NOWsbHUr0OAqF8S0HoABDe8",
+      authDomain: "lifewithdrop.firebaseapp.com",
+      projectId: "lifewithdrop",
+      storageBucket: "lifewithdrop.firebasestorage.app",
+      messagingSenderId: "322887057114",
+      appId: "1:322887057114:web:7643dff4f82e71fe93efe3",
+      measurementId: "G-9F223GR5ZT"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    function logout() {
+      localStorage.removeItem("user");
+      window.location.href = "index.html";
+    }
+
+    // --- Format Time ---
+    function formatTime(ts) {
+      const date = new Date(ts);
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
+    // --- Fetch Users ---
+    async function fetchAndDisplayUsers(currentUser) {
+      const userListContainer = document.getElementById('user-list');
+      const loadingSpinner = document.getElementById('loading-spinner');
+      const noUsersMessage = document.getElementById('no-users-message');
+      const targetType = currentUser.type === 'donor' ? 'taker' : 'donor';
+
+      try {
+        const usersCollection = collection(db, "users");
+        const querySnapshot = await getDocs(usersCollection);
+
+        const matches = [];
+        querySnapshot.forEach(doc => {
+          const u = doc.data();
+          if (
+            u.blood === currentUser.blood &&
+            u.state === currentUser.state &&
+            u.contact !== currentUser.contact &&
+            u.type === targetType
+          ) {
+            matches.push(u);
+          }
+        });
+
+        loadingSpinner.style.display = 'none';
+        userListContainer.innerHTML = '';
+
+        if (matches.length > 0) {
+          matches.forEach(user => addUserCard(userListContainer, user));
+        } else {
+          noUsersMessage.style.display = 'block';
+        }
+      } catch (err) {
+        console.error("Error fetching users:", err);
+      }
+    }
+
+    // --- Add User Card ---
+    function addUserCard(container, user) {
+      const card = document.createElement('div');
+      card.className = "bg-white/90 rounded-xl shadow-md p-4 flex items-center justify-between hover:shadow-lg hover:scale-[1.01] transition";
+
+      card.innerHTML = `
+        <div class="flex items-center gap-3">
+          <img src="${user.photo || 'https://via.placeholder.com/60'}" 
+               class="w-14 h-14 rounded-full object-cover border border-gray-300"/>
+          <div>
+            <p class="font-bold text-lg text-gray-800">${user.name}</p>
+            <p class="text-sm text-gray-600"><i class="fas fa-phone mr-1"></i>${user.contact}</p>
+            <p class="text-sm text-gray-600"><i class="fas fa-map-marker-alt mr-1"></i>${user.district}, ${user.state}</p>
+          </div>
+        </div>
+        <button onclick="openChat('${user.contact}', '${user.name}')" 
+          class="bg-gradient-to-r from-teal-500 to-green-500 text-white px-4 py-2 rounded-lg hover:opacity-90 flex items-center gap-2">
+          <i class='fas fa-comments'></i> Chat
+        </button>
+      `;
+      container.appendChild(card);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const storedUser = localStorage.getItem("user");
+      if (!storedUser) {
+        window.location.href = "index.html";
+        return;
+      }
+
+      const currentUser = JSON.parse(storedUser);
+      document.getElementById('user-name').textContent = currentUser.name.split(' ')[0];
+      document.getElementById('user-blood-group').textContent = currentUser.blood;
+      document.getElementById('list-title').innerHTML =
+        currentUser.type === 'donor'
+          ? `<i class="fas fa-hand-holding-medical mr-2"></i>People Who Need Blood`
+          : `<i class="fas fa-heart mr-2"></i>Available Donors`;
+
+      document.getElementById('profile-btn').addEventListener('click', () => window.location.href = 'profile.html');
+      document.getElementById('logout-btn').addEventListener('click', logout);
+
+      fetchAndDisplayUsers(currentUser);
+
+      // --- Notifications Setup ---
+      const chatsCol = collection(db, "chats");
+      onSnapshot(chatsCol, (snapshot) => {
+        let unreadCount = 0;
+        let notifList = '';
+        snapshot.docs.forEach(docSnap => {
+          const chatId = docSnap.id;
+          if (!chatId.includes(currentUser.contact)) return;
+          const data = docSnap.data();
+          const messages = data?.messages || [];
+          if (messages.length > 0) {
+            const lastMsg = messages[messages.length - 1];
+            const sender = lastMsg.sender;
+            const isUnread = sender !== currentUser.contact;
+            if (isUnread) unreadCount++;
+
+            notifList += `
+              <div class="px-3 py-2 hover:bg-gray-100 cursor-pointer border-b" 
+                   onclick="openChat('${sender}','${sender}')">
+                <p class="font-semibold text-sm text-gray-800">${sender}</p>
+                <p class="text-xs text-gray-500 truncate">${lastMsg.text}</p>
+              </div>
+            `;
+          }
+        });
+
+        document.getElementById('notif-bell-badge').style.display = unreadCount > 0 ? 'inline-block' : 'none';
+        document.getElementById('notif-bell-badge').textContent = unreadCount;
+        document.getElementById('notif-list').innerHTML = notifList || '<p class="text-center text-gray-500 py-4">No new notifications</p>';
+      });
+    });
+
+    // --- Chat Logic ---
+    let currentChatUser = null;
+    let chatUnsubscribe = null;
+
+    window.openChat = async function(contact, name) {
+      document.getElementById('chat-modal').style.display = 'flex';
+      document.getElementById('chat-with').textContent = `${name} (${contact})`;
+      document.getElementById('chat-input').value = '';
+      document.getElementById('chat-messages').innerHTML = '';
+      currentChatUser = contact;
+
+      const storedUser = JSON.parse(localStorage.getItem("user"));
+
+      // Get chat partner photo
+      const otherUserSnap = await getDoc(doc(db, "users", contact));
+      const otherUser = otherUserSnap.exists() ? otherUserSnap.data() : {};
+      const otherPhoto = otherUser.photo || 'https://via.placeholder.com/40';
+      const myPhoto = storedUser.photo || 'https://via.placeholder.com/40';
+
+      const chatId = [storedUser.contact, contact].sort().join('_');
+      const chatDocRef = doc(db, "chats", chatId);
+
+      if (chatUnsubscribe) chatUnsubscribe();
+      chatUnsubscribe = onSnapshot(chatDocRef, (docSnap) => {
+        const data = docSnap.data();
+        const messages = data?.messages || [];
+        const chatMessagesDiv = document.getElementById('chat-messages');
+        chatMessagesDiv.innerHTML = '';
+
+        messages.forEach(msg => {
+          const isMe = msg.sender === storedUser.contact;
+          const align = isMe ? "justify-end" : "justify-start";
+          const bubbleColor = isMe
+            ? "bg-gradient-to-r from-blue-500 to-indigo-500 text-white"
+            : "bg-gray-200 text-gray-800";
+          const avatar = isMe ? myPhoto : otherPhoto;
+          const time = msg.timestamp ? formatTime(msg.timestamp) : "";
+
+          chatMessagesDiv.innerHTML += `
+            <div class="flex ${align} items-end gap-2 mb-2">
+              ${!isMe ? `<img src="${avatar}" class="w-8 h-8 rounded-full object-cover"/>` : ""}
+              <div>
+                <div class="px-3 py-2 rounded-2xl max-w-xs break-words ${bubbleColor}">
+                  ${msg.text}
+                </div>
+                <div class="text-xs text-gray-500 mt-1 ${isMe ? 'text-right' : 'text-left'}">${time}</div>
+              </div>
+              ${isMe ? `<img src="${avatar}" class="w-8 h-8 rounded-full object-cover"/>` : ""}
+            </div>
+          `;
+        });
+
+        chatMessagesDiv.scrollTop = chatMessagesDiv.scrollHeight;
+      });
+    };
+
+    window.closeChat = function() {
+      document.getElementById('chat-modal').style.display = 'none';
+      if (chatUnsubscribe) chatUnsubscribe();
+    };
+
+    window.sendMessage = async function() {
+      const input = document.getElementById('chat-input');
+      const text = input.value.trim();
+      if (!text) return;
+      const storedUser = JSON.parse(localStorage.getItem("user"));
+      const chatId = [storedUser.contact, currentChatUser].sort().join('_');
+      const chatDocRef = doc(db, "chats", chatId);
+      await setDoc(chatDocRef, {
+        messages: arrayUnion({
+          sender: storedUser.contact,
+          text,
+          timestamp: Date.now()
+        })
+      }, { merge: true });
+      input.value = '';
+    };
+
+    // Toggle Notification Box
+    window.toggleNotif = function() {
+      const box = document.getElementById('notif-box');
+      box.style.display = box.style.display === 'none' ? 'block' : 'none';
+    };
+  </script>
+</head>
+
+<body class="bg-gradient-to-br from-indigo-200 via-purple-200 to-pink-200 min-h-screen">
+  <!-- Header -->
+  <header class="bg-white/90 backdrop-blur-md shadow-md relative">
+    <div class="container mx-auto max-w-4xl p-4 flex justify-between items-center">
+      <div class="flex items-center gap-2">
+        <i class="fas fa-tint text-3xl text-red-500"></i>
+        <h1 class="text-2xl font-bold text-gray-800">LifeDrop</h1>
+      </div>
+      <div class="flex items-center gap-4">
+        <!-- Notification Bell -->
+        <div class="relative">
+          <button onclick="toggleNotif()" class="relative text-gray-600 hover:text-blue-500 transition">
+            <i class="fas fa-bell text-2xl"></i>
+            <span id="notif-bell-badge" class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5 hidden"></span>
+          </button>
+          <!-- Notification Dropdown -->
+          <div id="notif-box" class="absolute right-0 mt-2 w-64 bg-white shadow-lg rounded-lg overflow-hidden hidden z-50">
+            <div class="border-b px-3 py-2 font-semibold text-gray-700">Notifications</div>
+            <div id="notif-list" class="max-h-60 overflow-y-auto"></div>
+          </div>
+        </div>
+
+        <button id="profile-btn" class="text-gray-600 hover:text-teal-500 transition"><i class="fas fa-user-circle text-2xl"></i></button>
+        <button id="logout-btn" class="bg-gradient-to-r from-red-500 to-pink-500 text-white px-3 py-1 rounded-md font-semibold hover:opacity-90 transition text-sm">Logout</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="container mx-auto max-w-4xl p-4 md:p-6">
+    <span class="text-gray-700">Welcome, <span id="user-name" class="font-semibold">User</span>!</span>
+
+    <div class="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg p-6 mb-6 text-center">
+      <p class="text-gray-600">Your Blood Group</p>
+      <p id="user-blood-group" class="text-4xl font-bold text-red-500">O+</p>
+    </div>
+
+    <div class="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg p-6">
+      <h2 id="list-title" class="text-xl font-bold text-gray-800 mb-4 text-center md:text-left">Available Users</h2>
+      <div id="user-list" class="space-y-4">
+        <div id="loading-spinner" class="text-center py-8">
+          <i class="fas fa-spinner fa-spin text-4xl text-teal-500"></i>
+          <p class="mt-2 text-gray-600">Finding matches for you...</p>
+        </div>
+        <div id="no-users-message" class="text-center py-8 text-gray-500 hidden">
+          <i class="fas fa-users-slash text-4xl mb-2"></i>
+          <p>No matching users found right now.</p>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Chat Modal -->
+  <div id="chat-modal" style="display:none; position:fixed; z-index:9999; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.6); align-items:center; justify-content:center;">
+    <div class="bg-white rounded-xl shadow-xl max-w-md w-full flex flex-col h-[80vh]">
+      <!-- Chat Header -->
+      <div class="flex justify-between items-center p-3 border-b bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-t-xl">
+        <h3 class="font-semibold text-lg" id="chat-with"></h3>
+        <button onclick="closeChat()" class="hover:opacity-80"><i class="fas fa-times text-xl"></i></button>
+      </div>
+
+      <!-- Chat Messages -->
+      <div id="chat-messages" class="flex-1 overflow-y-auto p-4 bg-gray-50"></div>
+
+      <!-- Chat Input -->
+      <div class="p-3 border-t bg-white flex gap-2">
+        <input id="chat-input" type="text" class="flex-1 border rounded-full px-4 py-2 focus:outline-none" placeholder="Type a message..." onkeydown="if(event.key==='Enter'){sendMessage();}">
+        <button onclick="sendMessage()" class="bg-gradient-to-r from-blue-500 to-indigo-500 text-white px-4 py-2 rounded-full hover:opacity-90"><i class="fas fa-paper-plane"></i></button>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

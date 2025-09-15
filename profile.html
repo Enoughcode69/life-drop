@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>My Profile - LifeDrop</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet"/>
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+    import { getFirestore, doc, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDkCAboSzG3NOWsbHUr0OAqF8S0HoABDe8",
+      authDomain: "lifewithdrop.firebaseapp.com",
+      projectId: "lifewithdrop",
+      storageBucket: "lifewithdrop.firebasestorage.app",
+      messagingSenderId: "322887057114",
+      appId: "1:322887057114:web:7643dff4f82e71fe93efe3"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    function logout() {
+      localStorage.removeItem("user");
+      window.location.href = "index.html";
+    }
+
+    async function deleteAccount(user) {
+      const confirmation = confirm("Are you sure you want to delete your account? This action is permanent.");
+      if (!confirmation) return;
+      try {
+        await deleteDoc(doc(db, "users", user.contact));
+        alert("Account deleted.");
+        logout();
+      } catch (err) {
+        alert("Error deleting account.");
+        console.error(err);
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      const storedUser = localStorage.getItem("user");
+      if (!storedUser) {
+        window.location.href = "index.html";
+        return;
+      }
+      let user = JSON.parse(storedUser);
+
+      // Populate fields
+      document.getElementById("profile-name").textContent = user.name;
+      document.getElementById("profile-type").textContent = user.type === "donor" ? "Blood Donor" : "Need Blood";
+      document.getElementById("profile-contact").textContent = user.contact;
+      document.getElementById("profile-email").textContent = user.email || "Not Provided";
+      document.getElementById("profile-dob").textContent = user.dob || "Not Provided";
+      document.getElementById("profile-blood").textContent = user.blood;
+      document.getElementById("profile-location").textContent = `${user.district}, ${user.state}`;
+      document.getElementById("profile-gender").textContent = user.gender || "Not Provided";
+
+      const profileImg = document.getElementById("profile-img");
+      if (user.photo) profileImg.src = user.photo;
+
+      // Upload photo
+      document.getElementById("upload-photo").addEventListener("change", async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = async () => {
+          const base64 = reader.result;
+          profileImg.src = base64;
+          user.photo = base64;
+          await updateDoc(doc(db, "users", user.contact), { photo: base64 });
+          localStorage.setItem("user", JSON.stringify(user));
+        };
+        reader.readAsDataURL(file);
+      });
+
+      // Edit profile
+      document.getElementById("edit-btn").addEventListener("click", () => {
+        document.getElementById("edit-name").value = user.name;
+        document.getElementById("edit-email").value = user.email || "";
+        document.getElementById("edit-district").value = user.district;
+        document.getElementById("edit-state").value = user.state;
+        document.getElementById("edit-modal").style.display = "flex";
+      });
+
+      document.getElementById("save-edit").addEventListener("click", async () => {
+        user.name = document.getElementById("edit-name").value;
+        user.email = document.getElementById("edit-email").value;
+        user.district = document.getElementById("edit-district").value;
+        user.state = document.getElementById("edit-state").value;
+
+        try {
+          await updateDoc(doc(db, "users", user.contact), user);
+          localStorage.setItem("user", JSON.stringify(user));
+          alert("Profile updated!");
+          location.reload();
+        } catch (err) {
+          alert("Error updating profile.");
+          console.error(err);
+        }
+      });
+
+      // Close modal
+      document.getElementById("close-modal").addEventListener("click", () => {
+        document.getElementById("edit-modal").style.display = "none";
+      });
+
+      // Buttons
+      document.getElementById("back-btn").addEventListener("click", () => window.location.href = "main.html");
+      document.getElementById("logout-btn").addEventListener("click", logout);
+      document.getElementById("delete-btn").addEventListener("click", () => deleteAccount(user));
+    });
+  </script>
+</head>
+
+<body class="bg-gradient-to-br from-indigo-100 via-purple-100 to-pink-100 min-h-screen flex items-center justify-center p-4">
+  <div class="container bg-white/90 backdrop-blur-md rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden">
+    
+    <!-- Profile Header -->
+    <div class="bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-center p-6">
+      <div class="relative inline-block">
+        <img id="profile-img" src="https://via.placeholder.com/150" class="w-28 h-28 rounded-full border-4 border-white shadow-lg object-cover mx-auto"/>
+        <label for="upload-photo" class="absolute bottom-0 right-0 bg-white text-indigo-600 p-2 rounded-full shadow cursor-pointer hover:bg-gray-100">
+          <i class="fas fa-camera"></i>
+        </label>
+        <input id="upload-photo" type="file" accept="image/*" class="hidden"/>
+      </div>
+      <h1 id="profile-name" class="text-2xl font-bold mt-3">User Name</h1>
+      <p id="profile-type" class="text-sm text-gray-200">User Type</p>
+    </div>
+
+    <!-- Profile Details -->
+    <div class="p-6 space-y-4">
+      <div class="grid grid-cols-2 gap-4 text-center">
+        <div class="bg-red-100 text-red-600 rounded-lg p-3 font-semibold">
+          <i class="fas fa-tint mr-2"></i><span id="profile-blood">O+</span>
+        </div>
+        <div class="bg-blue-100 text-blue-600 rounded-lg p-3 font-semibold">
+          <i class="fas fa-venus-mars mr-2"></i><span id="profile-gender">Gender</span>
+        </div>
+      </div>
+      <div class="bg-gray-50 p-3 rounded-lg flex items-center">
+        <i class="fas fa-phone w-6 text-gray-400 mr-3"></i>
+        <span id="profile-contact" class="text-gray-700">Contact</span>
+      </div>
+      <div class="bg-gray-50 p-3 rounded-lg flex items-center">
+        <i class="fas fa-envelope w-6 text-gray-400 mr-3"></i>
+        <span id="profile-email" class="text-gray-700">Email</span>
+      </div>
+      <div class="bg-gray-50 p-3 rounded-lg flex items-center">
+        <i class="fas fa-calendar-alt w-6 text-gray-400 mr-3"></i>
+        <span id="profile-dob" class="text-gray-700">DOB</span>
+      </div>
+      <div class="bg-gray-50 p-3 rounded-lg flex items-center">
+        <i class="fas fa-map-marker-alt w-6 text-gray-400 mr-3"></i>
+        <span id="profile-location" class="text-gray-700">Location</span>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="p-6 border-t flex flex-col md:flex-row gap-3 justify-between">
+      <button id="back-btn" class="w-full md:w-auto px-6 py-2 bg-gray-200 text-gray-800 rounded-lg font-semibold hover:bg-gray-300 flex items-center justify-center gap-2">
+        <i class="fas fa-arrow-left"></i> Back
+      </button>
+      <button id="edit-btn" class="w-full md:w-auto px-6 py-2 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600 flex items-center justify-center gap-2">
+        <i class="fas fa-edit"></i> Edit
+      </button>
+      <button id="logout-btn" class="w-full md:w-auto px-6 py-2 bg-orange-500 text-white rounded-lg font-semibold hover:bg-orange-600 flex items-center justify-center gap-2">
+        <i class="fas fa-sign-out-alt"></i> Logout
+      </button>
+      <button id="delete-btn" class="w-full md:w-auto px-6 py-2 bg-red-500 text-white rounded-lg font-semibold hover:bg-red-600 flex items-center justify-center gap-2">
+        <i class="fas fa-trash"></i> Delete
+      </button>
+    </div>
+  </div>
+
+  <!-- Edit Modal -->
+  <div id="edit-modal" class="fixed inset-0 bg-black/40 flex items-center justify-center hidden">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4">
+      <h2 class="text-xl font-bold text-gray-800 mb-2">Edit Profile</h2>
+      <input id="edit-name" class="w-full border rounded-lg px-3 py-2" placeholder="Name"/>
+      <input id="edit-email" class="w-full border rounded-lg px-3 py-2" placeholder="Email"/>
+      <input id="edit-district" class="w-full border rounded-lg px-3 py-2" placeholder="District"/>
+      <input id="edit-state" class="w-full border rounded-lg px-3 py-2" placeholder="State"/>
+      <div class="flex justify-end gap-3 mt-4">
+        <button id="close-modal" class="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300">Cancel</button>
+        <button id="save-edit" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">Save</button>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

@@ -10,17 +10,29 @@
   <meta name="theme-color" content="#e9d8fd">
 
   <style>
-    body { position: relative; overflow: hidden; }
-    .bg-slideshow { position: fixed; top:0; left:0; width:100%; height:100%; z-index:-1; }
-    .bg-slideshow img {
-      position:absolute; width:100%; height:100%;
-      object-fit:cover; opacity:0; transition:opacity 2s ease-in-out;
+    body {
+      position: relative;
+      min-height: 100vh;
+      overflow-y: auto; /* Allow scrolling */
     }
-    .bg-slideshow img.active { opacity:1; }
+    .bg-slideshow {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: -1;
+    }
+    .bg-slideshow img {
+      position: absolute;
+      width: 100%; height: 100%;
+      object-fit: cover;
+      opacity: 0;
+      transition: opacity 2s ease-in-out;
+    }
+    .bg-slideshow img.active { opacity: 1; }
 
     .heading {
       font-family: 'Dancing Script', cursive;
-      font-size: 3rem; /* larger size */
+      font-size: 3rem;
       color: #4c1d95;
       text-shadow: 1px 1px 6px rgba(0,0,0,0.3);
       animation: fadeSlide 1.5s ease forwards;
@@ -32,13 +44,18 @@
     .btn-animate {
       transition: transform 0.3s ease, background-color 0.3s ease;
     }
-    .btn-animate:hover { transform:scale(1.05); background-color:#34d399; }
+    .btn-animate:hover {
+      transform: scale(1.05);
+      background-color: #34d399;
+    }
     input:focus, select:focus {
-      outline:none; border-color:#60a5fa; box-shadow:0 0 6px #60a5fa;
+      outline: none;
+      border-color: #60a5fa;
+      box-shadow: 0 0 6px #60a5fa;
     }
   </style>
 </head>
-<body class="min-h-screen flex flex-col items-center justify-center p-4 space-y-6">
+<body class="flex flex-col items-center justify-start p-4 space-y-6 overflow-y-auto">
 
   <!-- Background Slideshow -->
   <div class="bg-slideshow">
@@ -49,8 +66,8 @@
     <img src="pexels-carloscruz-artegrafia-172084181-11198237.jpg">
   </div>
 
-  <!-- Heading Above Box -->
-  <h1 class="heading text-center">Welcome to LifeDrop</h1>
+  <!-- Heading -->
+  <h1 class="heading text-center mt-4">Welcome to LifeDrop</h1>
 
   <!-- Main Box -->
   <div class="w-full max-w-2xl bg-white/90 rounded-2xl shadow-2xl p-6 backdrop-blur-sm">
@@ -58,34 +75,34 @@
     <form id="register-form" class="space-y-3">
       <h2 class="text-xl font-bold">Create an account</h2>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <input id="register-name" required placeholder="Full name" class="p-2 border rounded" />
-        <input id="register-contact" required placeholder="Contact (used as ID)" class="p-2 border rounded" />
-        <input id="register-email" placeholder="Email (optional)" class="p-2 border rounded" />
-        <select id="register-type" class="p-2 border rounded" required>
+        <input id="register-name" required placeholder="Full name" class="p-2 border rounded w-full" />
+        <input id="register-contact" required placeholder="Contact (used as ID)" class="p-2 border rounded w-full" />
+        <input id="register-email" placeholder="Email (optional)" class="p-2 border rounded w-full" />
+        <select id="register-type" class="p-2 border rounded w-full" required>
           <option value="">I am a...</option>
           <option value="donor">Donor</option>
           <option value="taker">Need Blood</option>
         </select>
-        <select id="register-blood" class="p-2 border rounded" required>
+        <select id="register-blood" class="p-2 border rounded w-full" required>
           <option value="">Blood group</option>
           <option>A+</option><option>A-</option><option>B+</option><option>B-</option>
           <option>AB+</option><option>AB-</option><option>O+</option><option>O-</option>
         </select>
-        <select id="register-gender" class="p-2 border rounded">
+        <select id="register-gender" class="p-2 border rounded w-full">
           <option value="">Gender (optional)</option>
           <option>Male</option><option>Female</option><option>Other</option>
         </select>
-        <input id="register-dob" type="date" class="p-2 border rounded" />
-        <select id="register-state" class="p-2 border rounded" required>
+        <input id="register-dob" type="date" class="p-2 border rounded w-full" />
+        <select id="register-state" class="p-2 border rounded w-full" required>
           <option value="">Select state</option>
         </select>
-        <select id="register-district" class="p-2 border rounded" required>
+        <select id="register-district" class="p-2 border rounded w-full" required>
           <option value="">Select district</option>
         </select>
       </div>
-      <div>
+      <div class="flex flex-wrap gap-2 mt-2">
         <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded btn-animate">Register & Continue</button>
-        <button id="to-login" type="button" class="bg-gray-100 px-4 py-2 rounded btn-animate ml-2">Already have an account?</button>
+        <button id="to-login" type="button" class="bg-gray-100 px-4 py-2 rounded btn-animate">Already have an account?</button>
       </div>
     </form>
 
@@ -93,15 +110,15 @@
     <form id="login-form" class="space-y-3 hidden">
       <h2 class="text-xl font-bold">Sign in</h2>
       <input id="login-contact" placeholder="Contact (the number you registered with)" class="p-2 border rounded w-full" />
-      <div>
+      <div class="flex flex-wrap gap-2">
         <button class="bg-green-500 text-white px-4 py-2 rounded btn-animate" type="submit">Login</button>
-        <button id="to-register" type="button" class="bg-gray-100 px-4 py-2 rounded btn-animate ml-2">Register instead</button>
+        <button id="to-register" type="button" class="bg-gray-100 px-4 py-2 rounded btn-animate">Register instead</button>
       </div>
     </form>
   </div>
 
   <!-- Buttons Below Box -->
-  <div class="flex gap-4">
+  <div class="flex flex-col sm:flex-row gap-4 justify-center">
     <button id="show-register" class="py-2 px-6 bg-teal-500 text-white rounded btn-animate">Register</button>
     <button id="show-login" class="py-2 px-6 bg-gray-200 rounded btn-animate">Login</button>
   </div>
@@ -136,16 +153,20 @@
     const registerForm = document.getElementById('register-form');
     const loginForm = document.getElementById('login-form');
     document.getElementById('show-register').addEventListener('click', () => {
-      registerForm.classList.remove('hidden'); loginForm.classList.add('hidden');
+      registerForm.classList.remove('hidden');
+      loginForm.classList.add('hidden');
     });
     document.getElementById('show-login').addEventListener('click', () => {
-      registerForm.classList.add('hidden'); loginForm.classList.remove('hidden');
+      registerForm.classList.add('hidden');
+      loginForm.classList.remove('hidden');
     });
     document.getElementById('to-login').addEventListener('click', () => {
-      registerForm.classList.add('hidden'); loginForm.classList.remove('hidden');
+      registerForm.classList.add('hidden');
+      loginForm.classList.remove('hidden');
     });
     document.getElementById('to-register').addEventListener('click', () => {
-      registerForm.classList.remove('hidden'); loginForm.classList.add('hidden');
+      registerForm.classList.remove('hidden');
+      loginForm.classList.add('hidden');
     });
 
     // Load states.json
@@ -184,7 +205,8 @@
         const snap = await getDoc(userDocRef);
         if (snap.exists()) {
           alert('Account already exists, please login.');
-          loginForm.classList.remove('hidden'); registerForm.classList.add('hidden');
+          loginForm.classList.remove('hidden');
+          registerForm.classList.add('hidden');
           return;
         }
         const user = { name, contact, email, type, blood, gender, dob, state, district };
